@@ -1,0 +1,118 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../prisma/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+
+model User {
+  id            String     @id @default(uuid())
+  name          String
+  email         String     @unique
+  passwordHash  String     @map("password_hash")
+  avatarUrl     String?    @map("avatar_url")
+  emailVerified Boolean    @default(false) @map("email_verified")
+
+  // Sessões ativas
+  sessions      Session[]
+
+  // Relacionamento com organizações
+  memberships   OrganizationMember[]
+
+  // Convites enviados por este usuário
+  invitesSent   OrganizationInvite[] @relation("InvitedBy")
+
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+
+  createdAt DateTime @default(now()) @map("created_at")
+ 
+  @@map("sessions")
+}
+
+model Organization {
+  id        String  @id @default(uuid())
+  name      String
+  slug      String  @unique  // ex: "loja-do-joao" — usado na URL
+  document  String?          // CNPJ ou CPF pra NF-e
+  logoUrl   String? @map("logo_url")
+  phone     String?
+  email     String?
+
+  // Membros e convites
+  members   OrganizationMember[]
+  invites   OrganizationInvite[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("organizations")
+}
+
+
+model OrganizationMember {
+  id             String       @id @default(uuid())
+  userId         String       @map("user_id")
+  organizationId String       @map("organization_id")
+  role           MemberRole   @default(MEMBER)
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@unique([userId, organizationId])
+  @@map("organization_members")
+}
+
+
+model OrganizationInvite {
+  id              String        @id @default(uuid())
+  organizationId  String        @map("organization_id")
+  invitedByUserId String        @map("invited_by_user_id")
+  email           String
+  role            MemberRole    @default(MEMBER)
+  token           String        @unique @default(uuid())
+  status          InviteStatus  @default(PENDING)
+  expiresAt       DateTime      @map("expires_at")
+
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy       User          @relation("InvitedBy", fields: [invitedByUserId], references: [id])
+
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@map("organization_invites")
+}

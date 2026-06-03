@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: rootuser
+      POSTGRES_PASSWORD: 784637Celo
+      POSTGRES_DB: bizhondb
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql # ← sem o /data no final
+
+volumes:
+  postgres_data:
